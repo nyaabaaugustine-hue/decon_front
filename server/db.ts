@@ -1,5 +1,10 @@
-import { Pool, PoolConfig } from '@neondatabase/serverless';
+import { Pool, PoolConfig, neonConfig } from '@neondatabase/serverless';
 import dotenv from 'dotenv';
+
+// Node.js < 21 lacks a global WebSocket constructor.  The Neon serverless
+// driver needs one for its WebSocket transport.  The `ws` package provides it.
+import ws from 'ws';
+neonConfig.webSocketConstructor = ws;
 
 // ── Environment ────────────────────────────────────────────────────────────────
 dotenv.config();
