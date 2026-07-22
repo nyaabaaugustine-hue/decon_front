@@ -4,7 +4,6 @@ import helmet from 'helmet';
 import dotenv from 'dotenv';
 import { initializeSchema } from './schema.js';
 import { healthCheck } from './db.js';
-import { rateLimit } from './rateLimit.js';
 import { requestLogger } from './logger.js';
 import { requirePasswordChanged } from './auth.js';
 import vehiclesRouter from './routes/vehicles.js';
@@ -104,19 +103,7 @@ app.use(cors({
 
 app.use(express.json({ limit: '1mb' }));
 
-// ── Logging & rate limiting ───────────────────────────────────────────────────
-// NOTE: the in-memory rate limiter (server/rateLimit.ts) only works correctly
-// on a single long-running process (Render/Docker/local). On Vercel each
-// invocation may land on a different function instance, so counts reset
-// unpredictably — it still runs (no harm), but don't rely on it as your only
-// brute-force protection in a Vercel deployment.
-
 app.use(requestLogger);
-// Rate limiting is disabled in development to avoid lockouts during debugging.
-if (!isProduction) {
-  app.use('/api/auth/login', rateLimit({ windowMs: 15 * 60 * 1000, max: 10, message: 'Too many login attempts. Try again in 15 minutes.' }));
-  app.use('/api', rateLimit({ windowMs: 60 * 1000, max: 120 }));
-}
 
 // ── Force password change enforcement ──────────────────────────────────────
 // Blocks all API access (except auth endpoints) when a user's
