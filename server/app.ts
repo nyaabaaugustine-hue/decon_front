@@ -72,7 +72,6 @@ const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:5173')
   .filter(Boolean);
 
 const isProduction = process.env.NODE_ENV === 'production';
-const isVercel = process.env.VERCEL === '1';
 // Vite auto-increments the dev port (5173 -> 5174 -> 5175...) whenever the
 // previous port is still occupied by another running instance. Hardcoding a
 // single port in ALLOWED_ORIGINS meant every login broke the moment two dev
@@ -83,8 +82,8 @@ const localhostOriginPattern = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
 // Vercel preview deployments each get a unique, unguessable *.vercel.app
 // subdomain generated per-build — there's no way to know it ahead of time to
 // add to ALLOWED_ORIGINS. When actually running on Vercel, trust any
-// *.vercel.app origin so preview URLs work out of the box; every request still
-// requires a valid Bearer token regardless of origin, so this doesn't weaken auth.
+// *.vercel.app origin so deployed and preview frontends work out of the box; every
+// request still requires a valid Bearer token regardless of origin.
 const vercelPreviewPattern = /^https:\/\/[a-z0-9-]+\.vercel\.app$/;
 
 app.use(cors({
@@ -93,7 +92,7 @@ app.use(cors({
       !origin ||
       allowedOrigins.includes(origin) ||
       (!isProduction && localhostOriginPattern.test(origin)) ||
-      (isVercel && vercelPreviewPattern.test(origin))
+      vercelPreviewPattern.test(origin)
     ) {
       callback(null, true);
     } else {
