@@ -14,7 +14,7 @@ services:
       - key: JWT_SECRET
         generateValue: true
       - key: ALLOWED_ORIGINS
-        value: https://front-one-flax.vercel.app,http://localhost:5173
+        value: https://operations-degoony.vercel.app,https://front-one-flax.vercel.app,http://localhost:5173
       - key: PORT
         value: 3001
       - key: CLOUDINARY_CLOUD_NAME
@@ -37,3 +37,7 @@ services:
         value: fleet-documents
       - key: MINIO_PUBLIC_URL
         sync: false
+      - key: NTFY_BASE_URL
+        value: https://ntfy.sh
+      - key: NTFY_APP_PREFIX
+        value: degoony-fleet

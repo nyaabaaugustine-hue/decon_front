@@ -1,21 +1,17 @@
-import { query, execute } from '../db.js';
-import { pushNotification } from './gotify.js';
+import { query, execute, queryOne } from '../db.js';
+import { sendNotification } from './notify.js';
 
 let intervalHandle: ReturnType<typeof setInterval> | null = null;
 
 const CHECK_INTERVAL_MS = 60 * 60 * 1000;
 
-const SEVEN_DAYS = 7;
-const THIRTY_DAYS = 30;
-
-interface ExpiryItem {
-  id: string;
-  label: string;
-  entityType: string;
-  entityId: string;
-  expiryDate: string;
-  daysUntil: number;
-}
+const BUCKETS = [
+  { label: 'expired', maxDays: -1, priority: 5 as const, tags: ['rotating_light'] },
+  { label: 'expires today', maxDays: 0, priority: 5 as const, tags: ['rotating_light'] },
+  { label: 'expires tomorrow', maxDays: 1, priority: 4 as const, tags: ['warning'] },
+  { label: 'expires in 3 days', maxDays: 3, priority: 4 as const, tags: ['warning'] },
+  { label: 'expires in 7 days', maxDays: 7, priority: 3 as const, tags: ['warning'] },
+];
 
 function daysUntil(dateStr: string): number {
   if (!dateStr) return Infinity;
@@ -24,147 +20,140 @@ function daysUntil(dateStr: string): number {
   return Math.ceil((d.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
 }
 
-function daysLabel(days: number): string {
-  if (days < 0) return `expired ${Math.abs(days)} day${Math.abs(days) !== 1 ? 's' : ''} ago`;
-  if (days === 0) return 'expires today';
-  if (days === 1) return 'expires tomorrow';
-  return `expires in ${days} days`;
+function findBucket(days: number) {
+  for (const b of BUCKETS) {
+    if (days <= b.maxDays) return b;
+  }
+  return null;
 }
 
-function priorityForDays(days: number): number {
-  if (days < 0) return 10;
-  if (days <= 3) return 8;
-  if (days <= 7) return 6;
-  return 4;
+const ALREADY_NOTIFIED_SQL = `
+  SELECT key FROM company_settings
+  WHERE key LIKE 'expiry_notified_%' AND value = '1'
+`;
+
+async function getNotifiedSet(): Promise<Set<string>> {
+  const rows = await query<{ key: string }>(ALREADY_NOTIFIED_SQL);
+  return new Set(rows.map(r => r.key));
 }
 
-async function checkVehicleDocuments(): Promise<ExpiryItem[]> {
-  const rows = await query<{
-    id: string; vehicle_id: string; doc_type: string; plate_number: string; expiry_date: string;
-  }>(
-    `SELECT d.id, d.vehicle_id, d.doc_type, v.plate_number, d.expiry_date
+async function markNotified(key: string): Promise<void> {
+  await execute(
+    `INSERT INTO company_settings (id, key, value, category)
+     VALUES ($1, $2, '1', 'expiry_tracking')
+     ON CONFLICT (key) DO NOTHING`,
+    [key, key]
+  );
+}
+
+function notifiedKey(entityType: string, entityId: string, bucketLabel: string): string {
+  return `expiry_notified_${entityType}_${entityId}_${bucketLabel}`;
+}
+
+async function getAdminUserIds(): Promise<string[]> {
+  const rows = await query<{ id: string }>(
+    `SELECT id FROM admin_users WHERE role IN ('admin', 'manager')`
+  );
+  return rows.map(r => r.id);
+}
+
+interface ExpiryRow {
+  id: string;
+  label: string;
+  entityType: string;
+  entityId: string;
+  expiryDate: string;
+  days: number;
+}
+
+async function checkVehicleDocuments(): Promise<ExpiryRow[]> {
+  const rows = await query<{ id: string; doc_type: string; plate_number: string; expiry_date: string }>(
+    `SELECT d.id, d.doc_type, v.plate_number, d.expiry_date
      FROM vehicle_documents d JOIN vehicles v ON v.id = d.vehicle_id
      WHERE d.expiry_date IS NOT NULL AND d.expiry_date != ''`
   );
-  const results: ExpiryItem[] = [];
-  for (const row of rows) {
-    const d = daysUntil(row.expiry_date);
-    if (d <= THIRTY_DAYS) {
-      results.push({
-        id: row.id,
-        label: `${row.doc_type.replace(/_/g, ' ')} — ${row.plate_number}`,
-        entityType: 'vehicle_document',
-        entityId: row.id,
-        expiryDate: row.expiry_date,
-        daysUntil: d,
-      });
-    }
-  }
-  return results;
+  return rows.map(r => ({
+    id: r.id,
+    label: `${r.doc_type.replace(/_/g, ' ')} — ${r.plate_number}`,
+    entityType: 'vehicle_document',
+    entityId: r.id,
+    expiryDate: r.expiry_date,
+    days: daysUntil(r.expiry_date),
+  }));
 }
 
-async function checkDriverLicenses(): Promise<ExpiryItem[]> {
-  const rows = await query<{
-    id: string; driver_id: string; license_number: string; full_name: string; expiry_date: string;
-  }>(
-    `SELECT l.id, l.driver_id, l.license_number, d.full_name, l.expiry_date
+async function checkDriverLicenses(): Promise<ExpiryRow[]> {
+  const rows = await query<{ id: string; license_number: string; full_name: string; expiry_date: string }>(
+    `SELECT l.id, l.license_number, d.full_name, l.expiry_date
      FROM driver_licenses l JOIN drivers d ON d.id = l.driver_id
      WHERE l.expiry_date IS NOT NULL AND l.expiry_date != ''`
   );
-  const results: ExpiryItem[] = [];
-  for (const row of rows) {
-    const d = daysUntil(row.expiry_date);
-    if (d <= THIRTY_DAYS) {
-      results.push({
-        id: row.id,
-        label: `License ${row.license_number} — ${row.full_name}`,
-        entityType: 'driver_license',
-        entityId: row.id,
-        expiryDate: row.expiry_date,
-        daysUntil: d,
-      });
-    }
-  }
-  return results;
+  return rows.map(r => ({
+    id: r.id,
+    label: `License ${r.license_number} — ${r.full_name}`,
+    entityType: 'driver_license',
+    entityId: r.id,
+    expiryDate: r.expiry_date,
+    days: daysUntil(r.expiry_date),
+  }));
 }
 
-async function checkDriverContracts(): Promise<ExpiryItem[]> {
-  const rows = await query<{
-    id: string; driver_id: string; full_name: string; end_date: string;
-  }>(
-    `SELECT c.id, c.driver_id, d.full_name, c.end_date
+async function checkDriverContracts(): Promise<ExpiryRow[]> {
+  const rows = await query<{ id: string; full_name: string; end_date: string }>(
+    `SELECT c.id, d.full_name, c.end_date
      FROM driver_contracts c JOIN drivers d ON d.id = c.driver_id
      WHERE c.end_date IS NOT NULL AND c.end_date != '' AND c.status = 'active'`
   );
-  const results: ExpiryItem[] = [];
-  for (const row of rows) {
-    const d = daysUntil(row.end_date);
-    if (d <= THIRTY_DAYS) {
-      results.push({
-        id: row.id,
-        label: `Contract — ${row.full_name}`,
-        entityType: 'driver_contract',
-        entityId: row.id,
-        expiryDate: row.end_date,
-        daysUntil: d,
-      });
-    }
-  }
-  return results;
-}
-
-function typeForDays(days: number): string {
-  if (days < 0) return 'alert';
-  if (days <= 7) return 'warning';
-  return 'info';
-}
-
-async function createAppNotifications(items: ExpiryItem[]): Promise<void> {
-  for (const item of items) {
-    const title = `${daysLabel(item.daysUntil)}`;
-    const message = `${item.label}`;
-    const notifType = typeForDays(item.daysUntil);
-
-    await execute(
-      `INSERT INTO notifications (id, user_id, title, message, type, category, entity_type, entity_id, is_read)
-       VALUES ($1, NULL, $2, $3, $4, $5, $6, $7, false)
-       ON CONFLICT DO NOTHING`,
-      [
-        `expiry-${item.entityType}-${item.id}-${Math.floor(Date.now() / 3600000)}`,
-        title, message, notifType, 'expiry',
-        item.entityType, item.entityId,
-      ]
-    );
-  }
-}
-
-async function sendGotifyNotifications(items: ExpiryItem[]): Promise<void> {
-  for (const item of items) {
-    const title = `[Fleet] ${daysLabel(item.daysUntil)}`;
-    const message = item.label;
-    const priority = priorityForDays(item.daysUntil);
-    await pushNotification(title, message, priority);
-  }
+  return rows.map(r => ({
+    id: r.id,
+    label: `Contract — ${r.full_name}`,
+    entityType: 'driver_contract',
+    entityId: r.id,
+    expiryDate: r.end_date,
+    days: daysUntil(r.end_date),
+  }));
 }
 
 export async function runExpiryCheck(): Promise<void> {
   try {
-    const allItems = await Promise.all([
+    const [documents, licenses, contracts, userIds, notified] = await Promise.all([
       checkVehicleDocuments(),
       checkDriverLicenses(),
       checkDriverContracts(),
+      getAdminUserIds(),
+      getNotifiedSet(),
     ]);
-    const items = allItems.flat();
 
-    if (items.length === 0) return;
+    if (userIds.length === 0) return;
 
-    const filtered = items.filter(
-      (item) => item.daysUntil <= SEVEN_DAYS || item.daysUntil < 0
-    );
+    const all = [...documents, ...licenses, ...contracts];
 
-    if (filtered.length > 0) {
-      await createAppNotifications(filtered);
-      await sendGotifyNotifications(filtered);
+    for (const item of all) {
+      const bucket = findBucket(item.days);
+      if (!bucket) continue;
+
+      const key = notifiedKey(item.entityType, item.entityId, bucket.label);
+      if (notified.has(key)) continue;
+
+      const title = bucket.label.charAt(0).toUpperCase() + bucket.label.slice(1);
+      const message = `${item.label} (${item.expiryDate})`;
+
+      await Promise.all(
+        userIds.map(uid =>
+          sendNotification({
+            userId: uid,
+            title,
+            message,
+            priority: bucket.priority,
+            tags: bucket.tags,
+            category: 'expiry',
+            entityType: item.entityType,
+            entityId: item.entityId,
+          })
+        )
+      );
+
+      await markNotified(key);
     }
   } catch (err) {
     console.warn(`[expiry-checker] error:`, err);

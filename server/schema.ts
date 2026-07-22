@@ -3,7 +3,7 @@ import { pool, execute } from './db.js';
 // Bump this whenever the schema changes.  initializeSchema() checks this
 // against the `schema_migrations` table — if the row already exists, the
 // entire DDL/migration block is skipped (single round-trip instead of ~80).
-const SCHEMA_VERSION = 4;
+const SCHEMA_VERSION = 5;
 
 async function run(sql: string, label: string) {
   console.log(`  [schema] ${label}...`);
@@ -710,6 +710,12 @@ export async function initializeSchema(): Promise<void> {
   await run(
     `ALTER TABLE vehicle_documents ADD COLUMN IF NOT EXISTS file_size INTEGER DEFAULT 0`,
     'v4: add file_size'
+  );
+
+  // ── Migration: v4 → v5 (add read_at to notifications) ──
+  await run(
+    `ALTER TABLE notifications ADD COLUMN IF NOT EXISTS read_at TIMESTAMPTZ DEFAULT NULL`,
+    'v5: add read_at'
   );
 
   // ANALYZE
