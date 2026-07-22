@@ -72,6 +72,7 @@ const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:5173')
   .filter(Boolean);
 
 const isProduction = process.env.NODE_ENV === 'production';
+const isVercel = process.env.VERCEL === '1';
 // Vite auto-increments the dev port (5173 -> 5174 -> 5175...) whenever the
 // previous port is still occupied by another running instance. Hardcoding a
 // single port in ALLOWED_ORIGINS meant every login broke the moment two dev
