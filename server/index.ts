@@ -2,6 +2,7 @@
 // long-running Node process that both listens on a port and serves the API.
 import { app, dbReady } from './app.js';
 import { closePool } from './db.js';
+import { startServices, stopServices } from './services/index.js';
 
 const PORT = process.env.PORT || 3001;
 
@@ -10,7 +11,8 @@ dbReady.then(() => {
   app.listen(PORT, () => {
     console.log(`Server listening on http://localhost:${PORT}`);
   });
+  startServices();
 });
 
-process.on('SIGTERM', async () => { await closePool(); process.exit(0); });
-process.on('SIGINT', async () => { await closePool(); process.exit(0); });
+process.on('SIGTERM', async () => { stopServices(); await closePool(); process.exit(0); });
+process.on('SIGINT', async () => { stopServices(); await closePool(); process.exit(0); });
