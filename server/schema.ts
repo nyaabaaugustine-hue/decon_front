@@ -3,7 +3,7 @@ import { pool, execute } from './db.js';
 // Bump this whenever the schema changes.  initializeSchema() checks this
 // against the `schema_migrations` table — if the row already exists, the
 // entire DDL/migration block is skipped (single round-trip instead of ~80).
-const SCHEMA_VERSION = 3;
+const SCHEMA_VERSION = 4;
 
 async function run(sql: string, label: string) {
   console.log(`  [schema] ${label}...`);
@@ -693,6 +693,24 @@ export async function initializeSchema(): Promise<void> {
   // Session cleanup
   await run(`DELETE FROM sessions WHERE expires_at < NOW()`, 'cleanup expired sessions');
   await run(`DELETE FROM sessions WHERE created_at < NOW() - INTERVAL '7 days'`, 'cleanup old sessions');
+
+  // ── Migration: v3 → v4 (add MinIO storage columns to vehicle_documents) ──
+  await run(
+    `ALTER TABLE vehicle_documents ADD COLUMN IF NOT EXISTS object_key TEXT DEFAULT ''`,
+    'v4: add object_key'
+  );
+  await run(
+    `ALTER TABLE vehicle_documents ADD COLUMN IF NOT EXISTS bucket TEXT DEFAULT ''`,
+    'v4: add bucket'
+  );
+  await run(
+    `ALTER TABLE vehicle_documents ADD COLUMN IF NOT EXISTS mime_type TEXT DEFAULT ''`,
+    'v4: add mime_type'
+  );
+  await run(
+    `ALTER TABLE vehicle_documents ADD COLUMN IF NOT EXISTS file_size INTEGER DEFAULT 0`,
+    'v4: add file_size'
+  );
 
   // ANALYZE
   if (process.env.NODE_ENV !== 'production') {
