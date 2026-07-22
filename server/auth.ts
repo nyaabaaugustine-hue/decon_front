@@ -160,7 +160,7 @@ export async function requirePasswordChanged(req: any, res: any, next: any) {
     return next();
   }
 
-  if (req.path.startsWith('/api/auth/')) {
+  if (req.path.startsWith('/auth/')) {
     return next();
   }
 
