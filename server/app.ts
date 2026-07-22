@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import dotenv from 'dotenv';
 import { initializeSchema } from './schema.js';
 import { healthCheck } from './db.js';
+import { rateLimit } from './rateLimit.js';
 import { requestLogger } from './logger.js';
 import { requirePasswordChanged } from './auth.js';
 import vehiclesRouter from './routes/vehicles.js';
