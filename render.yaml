@@ -1,0 +1,39 @@
+services:
+  - type: web
+    name: decon-fleet-api
+    runtime: node
+    plan: starter
+    buildCommand: npm install
+    startCommand: node --import tsx server/index.ts
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ALLOWED_ORIGINS
+        value: https://front-one-flax.vercel.app,http://localhost:5173
+      - key: PORT
+        value: 3001
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: MINIO_ENDPOINT
+        sync: false
+      - key: MINIO_ACCESS_KEY
+        sync: false
+      - key: MINIO_SECRET_KEY
+        sync: false
+      - key: MINIO_REGION
+        value: us-east-1
+      - key: MINIO_MEDIA_BUCKET
+        value: fleet-media
+      - key: MINIO_DOCUMENTS_BUCKET
+        value: fleet-documents
+      - key: MINIO_PUBLIC_URL
+        sync: false

@@ -1,0 +1,41 @@
+services:
+  minio:
+    image: minio/minio:latest
+    container_name: drivermgt-minio
+    restart: unless-stopped
+    ports:
+      - "9000:9000" # S3 API — this is what MINIO_ENDPOINT points to
+      - "9001:9001" # Web console — http://localhost:9001
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadmin123}
+    volumes:
+      - minio-data:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # One-shot helper container that creates the two buckets this app expects
+  # (fleet-media public-read, fleet-documents private) and exits. Runs every
+  # time you `docker compose up` — all its commands are idempotent.
+  minio-init:
+    image: minio/mc:latest
+    container_name: drivermgt-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 ${MINIO_ACCESS_KEY:-minioadmin} ${MINIO_SECRET_KEY:-minioadmin123};
+      mc mb --ignore-existing local/fleet-media;
+      mc mb --ignore-existing local/fleet-documents;
+      mc anonymous set download local/fleet-media;
+      mc anonymous set none local/fleet-documents;
+      echo 'MinIO buckets ready: fleet-media (public-read), fleet-documents (private)';
+      "
+
+volumes:
+  minio-data:
