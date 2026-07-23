@@ -6,11 +6,11 @@ let intervalHandle: ReturnType<typeof setInterval> | null = null;
 const CHECK_INTERVAL_MS = 60 * 60 * 1000;
 
 const BUCKETS = [
-  { label: 'expired', maxDays: -1, priority: 5 as const, tags: ['rotating_light'] },
-  { label: 'expires today', maxDays: 0, priority: 5 as const, tags: ['rotating_light'] },
-  { label: 'expires tomorrow', maxDays: 1, priority: 4 as const, tags: ['warning'] },
-  { label: 'expires in 3 days', maxDays: 3, priority: 4 as const, tags: ['warning'] },
-  { label: 'expires in 7 days', maxDays: 7, priority: 3 as const, tags: ['warning'] },
+  { label: 'expired', maxDays: -1, priority: 5 },
+  { label: 'expires today', maxDays: 0, priority: 5 },
+  { label: 'expires tomorrow', maxDays: 1, priority: 4 },
+  { label: 'expires in 3 days', maxDays: 3, priority: 4 },
+  { label: 'expires in 7 days', maxDays: 7, priority: 3 },
 ];
 
 function daysUntil(dateStr: string): number {
@@ -145,7 +145,6 @@ export async function runExpiryCheck(): Promise<void> {
             title,
             message,
             priority: bucket.priority,
-            tags: bucket.tags,
             category: 'expiry',
             entityType: item.entityType,
             entityId: item.entityId,

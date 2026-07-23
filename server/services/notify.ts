@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto';
 import { execute } from '../db.js';
-import { send } from './ntfy.js';
+import { sendPush } from './onesignal.js';
 
 export type NotifyPriority = 1 | 2 | 3 | 4 | 5;
 export type NotifyType = 'info' | 'warning' | 'alert' | 'success';
@@ -27,22 +27,22 @@ export async function sendNotification(params: {
   title: string;
   message: string;
   priority?: NotifyPriority;
-  tags?: string[];
   category?: NotifyCategory;
   entityType?: string;
   entityId?: string;
-  clickUrl?: string;
+  url?: string;
+  data?: Record<string, string>;
 }): Promise<void> {
   const {
     userId,
     title,
     message,
     priority = 3,
-    tags = [],
     category = 'general',
     entityType,
     entityId,
-    clickUrl,
+    url,
+    data,
   } = params;
 
   const notifType: NotifyType = PRIORITY_TYPE_MAP[priority] || 'info';
@@ -57,7 +57,7 @@ export async function sendNotification(params: {
 
   await Promise.all([
     insertPromise,
-    send(userId, title, message, priority, tags, clickUrl),
+    sendPush(userId, title, message, url, data),
   ]);
 }
 

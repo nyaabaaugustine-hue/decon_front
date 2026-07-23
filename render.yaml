@@ -41,3 +41,7 @@ services:
         value: https://ntfy.sh
       - key: NTFY_APP_PREFIX
         value: degoony-fleet
+      - key: ONESIGNAL_APP_ID
+        sync: false
+      - key: ONESIGNAL_REST_API_KEY
+        sync: false
