@@ -42,8 +42,8 @@ router.post(
   })
 );
 
-// PUT /api/service-providers/:id — update provider
-router.put(
+// PATCH /api/service-providers/:id — update provider
+router.patch(
   '/:id',
   requireRole('admin', 'manager'),
   requireIdParam(),

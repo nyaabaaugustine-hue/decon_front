@@ -55,8 +55,8 @@ router.post(
   })
 );
 
-// PUT /api/spare-parts/:id — update part
-router.put(
+// PATCH /api/spare-parts/:id — update part
+router.patch(
   '/:id',
   requireRole('admin', 'manager'),
   requireIdParam(),

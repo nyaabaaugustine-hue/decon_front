@@ -67,8 +67,8 @@ router.post(
   })
 );
 
-// PUT /api/notifications/:id/read — mark as read
-router.put(
+// PATCH /api/notifications/:id/read — mark as read
+router.patch(
   '/:id/read',
   requireIdParam(),
   asyncHandler(async (req, res) => {
@@ -84,8 +84,8 @@ router.put(
   })
 );
 
-// PUT /api/notifications/read-all — mark all as read for current user
-router.put(
+// PATCH /api/notifications/read-all — mark all as read for current user
+router.patch(
   '/read-all',
   asyncHandler(async (req, res) => {
     const userId = (req as any).user?.id;

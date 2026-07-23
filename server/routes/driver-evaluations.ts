@@ -62,8 +62,8 @@ router.post(
   })
 );
 
-// PUT /api/driver-evaluations/:id — update
-router.put(
+// PATCH /api/driver-evaluations/:id — update
+router.patch(
   '/:id',
   requireRole('admin', 'manager'),
   requireIdParam(),

@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import compression from 'compression';
 import dotenv from 'dotenv';
 import { initializeSchema } from './schema.js';
 import { healthCheck } from './db.js';
@@ -100,6 +101,8 @@ app.use(cors({
   },
   credentials: true,
 }));
+
+app.use(compression({ threshold: 1024 }));
 
 app.use(express.json({ limit: '1mb' }));
 

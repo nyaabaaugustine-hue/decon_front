@@ -73,8 +73,8 @@ router.post(
   })
 );
 
-// PUT /api/expenses/:id — update expense
-router.put(
+// PATCH /api/expenses/:id — update expense
+router.patch(
   '/:id',
   requireRole('admin', 'manager'),
   requireIdParam(),

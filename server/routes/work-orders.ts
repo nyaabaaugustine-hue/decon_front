@@ -60,8 +60,8 @@ router.post(
   })
 );
 
-// PUT /api/work-orders/:id — update work order
-router.put(
+// PATCH /api/work-orders/:id — update work order
+router.patch(
   '/:id',
   requireRole('admin', 'manager'),
   requireIdParam(),

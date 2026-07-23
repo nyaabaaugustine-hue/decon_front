@@ -37,8 +37,8 @@ router.get(
   })
 );
 
-// PUT /api/settings/:key — update setting value (admin only)
-router.put(
+// PATCH /api/settings/:key — update setting value (admin only)
+router.patch(
   '/:key',
   requireRole('admin'),
   requireIdParam(),

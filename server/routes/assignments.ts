@@ -103,8 +103,8 @@ router.post(
   })
 );
 
-// PUT /api/assignments/:id — update assignment
-router.put(
+// PATCH /api/assignments/:id — update assignment
+router.patch(
   '/:id',
   requireRole('admin', 'manager'),
   requireIdParam(),
