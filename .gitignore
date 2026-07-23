@@ -36,3 +36,9 @@ server/**/*.d.ts
 
 # Stray Windows artifact
 nul
+
+# Local docs (not tracked — personal copies)
+README.md
+PROGRESS.md
+social/
+notes/
