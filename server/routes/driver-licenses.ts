@@ -58,8 +58,8 @@ router.post(
   })
 );
 
-// PUT /api/driver-licenses/:id — update
-router.put(
+// PATCH /api/driver-licenses/:id — update
+router.patch(
   '/:id',
   requireRole('admin', 'manager'),
   requireIdParam(),
