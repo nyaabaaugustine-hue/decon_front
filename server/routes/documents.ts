@@ -26,6 +26,19 @@ const DOCUMENT_COLUMNS = [
 
 const COLUMNS_SQL = DOCUMENT_COLUMNS.join(', ');
 
+// GET /api/documents — list all documents (bulk, avoids N+1)
+router.get(
+  '/',
+  asyncHandler(async (req, res) => {
+    const limit = Math.min(Math.max(parseInt(req.query.limit as string) || 500, 1), 2000);
+    const docs = await query<VehicleDocument>(
+      `SELECT ${COLUMNS_SQL} FROM vehicle_documents ORDER BY issue_date DESC LIMIT $1`,
+      [limit]
+    );
+    res.json(docs);
+  })
+);
+
 // GET /api/documents/vehicle/:vehicleId
 router.get(
   '/vehicle/:vehicleId',

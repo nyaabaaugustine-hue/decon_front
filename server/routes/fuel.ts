@@ -3,6 +3,7 @@ import { randomUUID } from 'crypto';
 import { query, queryOne, execute, executeReturning } from '../db.js';
 import { requireFields, requireIdParam, asyncHandler } from '../validate.js';
 import { requireAuth, requireRole } from '../auth.js';
+import { notifyAdmins } from '../services/notify.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -54,6 +55,7 @@ router.post(
       [id, b.vehicleId, b.driverId ?? null, b.fuelDate, b.station, b.fuelType, b.liters, b.costPerLiter, b.totalCost, b.mileageKm ?? null, b.fuelCard ?? null, b.receiptNumber ?? null]
     );
     res.status(201).json(created);
+    void notifyAdmins({ title: 'Fuel Entry', message: `${b.station} — ${b.liters}L $${b.totalCost}`, category: 'general', entityType: 'fuel_entry', entityId: created.id, priority: 2 });
   })
 );
 

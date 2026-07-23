@@ -3,6 +3,7 @@ import { randomUUID } from 'crypto';
 import { query, queryOne, execute, executeReturning } from '../db.js';
 import { requireFields, requireIdParam, asyncHandler } from '../validate.js';
 import { requireAuth, requireRole } from '../auth.js';
+import { notifyAdmins } from '../services/notify.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -57,6 +58,7 @@ router.post(
       [id, b.driverId, b.evaluatorName ?? null, b.evaluationDate, b.period ?? null, toInt(b.safetyScore), toInt(b.punctualityScore), toInt(b.drivingSkillScore), toInt(b.overallScore), b.strengths ?? null, b.improvements ?? null, b.comments ?? null, b.status ?? null]
     );
     res.status(201).json(created);
+    void notifyAdmins({ title: 'Driver Evaluation', message: `Driver ${b.driverId} — Score: ${b.overallScore ?? 'N/A'}`, category: 'evaluation', entityType: 'driver_evaluation', entityId: created.id, priority: 2 });
   })
 );
 

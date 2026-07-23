@@ -4,6 +4,7 @@ import { query, queryOne, execute, executeReturning } from '../db.js';
 import { requireFields, requireIdParam, asyncHandler } from '../validate.js';
 import type { ServiceLog } from '../types.js';
 import { requireAuth, requireRole } from '../auth.js';
+import { notifyAdmins } from '../services/notify.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -44,6 +45,7 @@ router.post(
       [id, b.vehicleId, b.serviceDate, b.mileageKm, b.serviceType, b.partsReplaced, b.workshop, b.cost]
     );
     res.status(201).json(created);
+    void notifyAdmins({ title: 'Service Logged', message: `${b.serviceType} — $${b.cost}`, category: 'maintenance', entityType: 'service_log', entityId: created.id, priority: 3 });
   })
 );
 

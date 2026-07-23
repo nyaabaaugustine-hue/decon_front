@@ -3,6 +3,7 @@ import { randomUUID } from 'crypto';
 import { query, queryOne, execute, executeReturning } from '../db.js';
 import { requireFields, requireIdParam, asyncHandler } from '../validate.js';
 import { requireAuth, requireRole } from '../auth.js';
+import { notifyAdmins } from '../services/notify.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -55,6 +56,7 @@ router.post(
       [id, b.vehicleId, b.title, b.description ?? null, b.priority ?? 'medium', 'open', b.assignedTo ?? null, b.estimatedCost ?? null, b.dueDate ?? null, createdBy]
     );
     res.status(201).json(created);
+    void notifyAdmins({ title: 'New Work Order', message: `${created.title}`, category: 'work_order', entityType: 'work_order', entityId: created.id, priority: 3 });
   })
 );
 
@@ -99,6 +101,9 @@ router.put(
         values
       );
       res.json(updated);
+      if (req.body.status) {
+        void notifyAdmins({ title: 'Work Order Updated', message: `${updated.title} — ${req.body.status}`, category: 'work_order', entityType: 'work_order', entityId: updated.id, priority: req.body.status === 'completed' || req.body.status === 'cancelled' ? 2 : 3 });
+      }
       return;
     }
 

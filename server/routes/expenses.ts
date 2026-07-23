@@ -3,6 +3,7 @@ import { randomUUID } from 'crypto';
 import { query, queryOne, execute, executeReturning } from '../db.js';
 import { requireFields, requireIdParam, asyncHandler } from '../validate.js';
 import { requireAuth, requireRole } from '../auth.js';
+import { notifyAdmins } from '../services/notify.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -68,6 +69,7 @@ router.post(
       [id, b.vehicleId ?? null, b.driverId ?? null, b.category, b.description, b.amount, b.expenseDate, b.receiptUrl ?? null, 'pending', null, b.notes ?? null]
     );
     res.status(201).json(created);
+    void notifyAdmins({ title: 'New Expense', message: `${b.category} — $${b.amount}`, category: 'expense', entityType: 'expense', entityId: created.id, priority: 3 });
   })
 );
 
@@ -110,6 +112,9 @@ router.put(
         values
       );
       res.json(updated);
+      if (req.body.status === 'approved' || req.body.status === 'rejected') {
+        void notifyAdmins({ title: 'Expense Updated', message: `${existing.category} ${req.body.status} — $${existing.amount}`, category: 'expense', entityType: 'expense', entityId: updated.id, priority: req.body.status === 'approved' ? 2 : 3 });
+      }
       return;
     }
 

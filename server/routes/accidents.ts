@@ -4,6 +4,7 @@ import { query, queryOne, execute, executeReturning } from '../db.js';
 import { requireFields, requireIdParam, asyncHandler } from '../validate.js';
 import type { AccidentReport } from '../types.js';
 import { requireAuth, requireRole } from '../auth.js';
+import { notifyAdmins } from '../services/notify.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -44,6 +45,7 @@ router.post(
       [id, b.vehicleId, b.driverId ?? null, b.accidentDate, b.description, b.cost, b.driverAtFault]
     );
     res.status(201).json(created);
+    void notifyAdmins({ title: 'Accident Reported', message: `Vehicle ${b.vehicleId} — $${b.cost}`, category: 'accident', entityType: 'accident_report', entityId: created.id, priority: 5 });
   })
 );
 

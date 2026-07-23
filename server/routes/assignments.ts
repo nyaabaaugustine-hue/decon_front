@@ -3,6 +3,7 @@ import { randomUUID } from 'crypto';
 import { query, queryOne, execute, executeReturning } from '../db.js';
 import { requireFields, requireIdParam, asyncHandler } from '../validate.js';
 import { requireAuth, requireRole } from '../auth.js';
+import { notifyAdmins } from '../services/notify.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -98,6 +99,7 @@ router.post(
       [id, b.vehicleId, b.driverId, b.startDate, b.endDate ?? null, b.purpose ?? '', b.status ?? 'active', b.notes ?? '']
     );
     res.status(201).json(created);
+    void notifyAdmins({ title: 'New Assignment', message: `Driver ${b.driverId} assigned to vehicle ${b.vehicleId}`, category: 'assignment', entityType: 'vehicle_assignment', entityId: created.id, priority: 3 });
   })
 );
 
@@ -140,6 +142,9 @@ router.put(
         values
       );
       res.json(updated);
+      if (req.body.status) {
+        void notifyAdmins({ title: 'Assignment Updated', message: `${req.body.status}`, category: 'assignment', entityType: 'vehicle_assignment', entityId: updated.id, priority: req.body.status === 'ended' ? 2 : 3 });
+      }
       return;
     }
 

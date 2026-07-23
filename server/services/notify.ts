@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import { execute } from '../db.js';
+import { execute, query } from '../db.js';
 import { sendPush } from './onesignal.js';
 
 export type NotifyPriority = 1 | 2 | 3 | 4 | 5;
@@ -72,5 +72,19 @@ export async function markAllRead(userId: string): Promise<void> {
   await execute(
     `UPDATE notifications SET is_read = true WHERE user_id = $1 AND is_read = false`,
     [userId]
+  );
+}
+
+export async function getAdminUserIds(): Promise<string[]> {
+  const rows = await query<{ id: string }>(
+    `SELECT id FROM admin_users WHERE role IN ('admin', 'manager')`
+  );
+  return rows.map(r => r.id);
+}
+
+export async function notifyAdmins(params: Omit<Parameters<typeof sendNotification>[0], 'userId'>): Promise<void> {
+  const userIds = await getAdminUserIds();
+  await Promise.all(
+    userIds.map(uid => sendNotification({ userId: uid, ...params }))
   );
 }
